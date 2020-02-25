@@ -1,6 +1,10 @@
 #define _CRT_SECURE_NO_WARNINGS
 #define _CRT_SECURE_NO_DEPRECATE
 
+#ifdef __GNUG__
+#define strcpy_s(a,b,c) strcpy(a,c)
+#endif
+
 #include <conio.h>
 #include <cstdio>
 #include <iostream>
@@ -13,8 +17,9 @@ class Date;
 class Time;
 class Aviasales;
 class Node;
+class List;
 
-void addTicket(Aviasales*&, int&, Aviasales*);
+void addTicket(List*, Aviasales*);
 char* strFill() {
 	int len = 1;
 	char* tmpStr = nullptr;
@@ -81,87 +86,8 @@ char* readCharsBeforeSeparator(FILE* from, char separator) {
 	str[strlen - 1] = '\0';
 	return str;
 }
-void deleteTicket(Aviasales*&, int, int&);
-void saveDB(Aviasales*, int);
-void sortArr(Aviasales*, int);
-void printTicketArr(Aviasales*, int);
+void sortArr(List*);
 bool needToSwap(Aviasales*, Aviasales*, int);
-
-class Node
-{
-public:
-	Aviasales* data;
-	Node* prev;
-	Node* next;
-	Node(Aviasales* data)
-	{
-		this->data = data;
-		prev = nullptr;
-		next = nullptr;
-	}
-	Node(Aviasales* data, Node* next, Node* prev)
-	{
-		this->data = data;
-		this->prev = prev;
-		this->next = next;
-	}
-	friend class Aviasales;
-};
-class List
-{
-	Node* head;
-	Node* tail;
-	int size = 0;
-public:
-	List()
-	{
-		head = nullptr;
-		tail = nullptr;
-	}
-	~List()                          
-	{
-		while (head)
-		{
-			tail = head->next;           
-			delete head;                   
-			head = tail;                   
-		}
-	}
-
-	
-	void setSize() {
-		this->size++;
-	}
-	void pushBack(Aviasales* value)
-	{
-		Node* temp = new Node(value);
-		if (head == nullptr)
-		{
-			temp->prev = nullptr;
-			head = tail = temp;
-		}
-		else
-		{
-			Node* tail = head;
-			while (tail->next != nullptr)
-			{
-				tail = tail->next;
-			}
-			tail->next = temp;
-			temp->prev = tail;
-		}
-		setSize();
-	}
-	void print(Aviasales* temp)
-	{
-		Node* current = head;
-		while (current)
-		{
-			cout << current->data->getDate << endl;
-			current = current->next;
-		}
-	}
-};
 
 class Date
 {
@@ -297,7 +223,7 @@ public:
 		return new Aviasales(*date, *time, nameOfAirfield, tt, isBreak);
 	}
 
-	static Aviasales* readFromFile(int& size) {
+	static Aviasales* readFromFile(List* myList) {
 		FILE* file;
 		if ((file = fopen("database.txt", "r")) == NULL)
 		{
@@ -310,16 +236,183 @@ public:
 			exit(0);
 		}
 		Aviasales* readTickets = nullptr;
+
 		fclose(file);
 		file = fopen("database.txt", "r");
 		while (!feof(file))
 		{
-			addTicket(readTickets, size, readTicket(file));
+			addTicket(myList, readTicket(file));
 		}
 		fclose(file);
 		return readTickets;
 	}
 };
+
+class Node
+{
+public:
+	Aviasales* data;
+	Node* prev;
+	Node* next;
+	Node(Aviasales* data)
+	{
+		this->data = data;
+		prev = nullptr;
+		next = nullptr;
+	}
+	Node(Aviasales* data, Node* next, Node* prev)
+	{
+		this->data = data;
+		this->prev = prev;
+		this->next = next;
+	}
+};
+class List
+{
+	Node* head;
+	Node* tail;
+	int size = 0;
+public:
+	List()
+	{
+		head = nullptr;
+		tail = nullptr;
+	}
+	~List()
+	{
+		while (head)
+		{
+			tail = head->next;
+			delete head;
+			head = tail;
+		}
+	}
+
+	void setSize() {
+		this->size++;
+	}
+	void setValueSize(int _size) {
+		this->size = _size;
+	}							// Да-да, size можно было реализовать иначе, но это мои тараканы :)
+	void decSize() {
+		this->size--;
+	}
+	int getSize() {
+		return size;
+	}
+	void pushBack(Aviasales* value)
+	{
+		Node* temp = new Node(value, nullptr, tail);
+		tail = temp;
+		if (head == nullptr)
+		{
+			head = temp;
+		}
+		else
+		{
+			Node* current = head;
+			while (current->next)
+			{
+				current = current->next;
+			}
+			current->next = temp;
+			temp->prev = current;
+		}
+		setSize();
+	}
+
+	void saveDB() {
+		FILE* file = fopen("database.txt", "w");
+
+		Node* current = head;
+		while (current != NULL)
+		{
+			fprintf(
+				file,
+				"%.2i.%.2i;%.2i:%.2i;%s;%d;\n",
+				current->data->getDate().getDay(),
+				current->data->getDate().getMonth(),
+				current->data->getTime().getHour(),
+				current->data->getTime().getMinute(),
+				current->data->getNameOfAirfield(),
+				current->data->getTravelTime());
+			current = current->next;
+		}
+		fclose(file);
+	}
+
+	void print() {
+		Node* current = head;
+		while (current != NULL) {
+			printf(
+				"%.2i.%.2i; %.2i:%.2i; %s; %d; ",
+				current->data->getDate().getDay(),
+				current->data->getDate().getMonth(),
+				current->data->getTime().getHour(),
+				current->data->getTime().getMinute(),
+				current->data->getNameOfAirfield(),
+				current->data->getTravelTime());
+			current->data->isBreak() ? printf("Завтрак включен\n") : printf(" Без завтрака\n");
+			current = current->next;
+		}
+	}
+	int deleteList(int index)
+	{
+		if (head == nullptr)
+		{
+			printf("Cписок пуст\n");
+			return 0;
+		}
+		else if (index == 1)
+		{
+			Node* tmp = head;
+			if (tmp->next == nullptr)
+			{
+				delete head;
+				head = nullptr;
+				decSize();
+				return 0;
+			}
+			else
+			{
+				tmp = tmp->next;
+				delete head;
+				head = tmp;
+				decSize();
+				return 0;
+			}
+		}
+		else if (index == getSize())
+		{
+			Node* current = tail;
+			current = current->prev;
+			delete current->next;
+			current->next = nullptr;
+			decSize();
+			return 0;
+		}
+
+		else if (head == head->next)
+		{
+			delete head;
+			head = nullptr;
+			decSize();
+		}
+		else
+		{
+			Node* current = head;
+			for (int i = index; i > 1; i--)
+				current = current->next;
+			if (current == head) head = current->next;
+			current->prev->next = current->next;
+			current->next->prev = current->prev;
+			delete current;
+			decSize();
+		}
+		printf("Элемент удален!\n");
+	}
+};
+
 Aviasales::Aviasales()
 {
 	Time nullTime(0, 0);
@@ -379,22 +472,8 @@ bool needToSwap(Aviasales* left, Aviasales* right, int choice) {
 		return (left->getTravelTime() > right->getTravelTime());
 	}
 }
-void printTicketArr(Aviasales* ticketArr, int arrSize) {
-	for (int i = 0; i < arrSize; i++)
-	{
-		printf(
-			"%.2i.%.2i; %.2i:%.2i; %s; %d; ",
-			ticketArr[i].getDate().getDay(),
-			ticketArr[i].getDate().getMonth(),
-			ticketArr[i].getTime().getHour(),
-			ticketArr[i].getTime().getMinute(),
-			ticketArr[i].getNameOfAirfield(),
-			ticketArr[i].getTravelTime()
-		);
-		ticketArr[i].isBreak() == 1 ? printf("Завтрак включён\n") : printf("Без завтрака\n");
-	}
-}
-void sortArr(Aviasales* ticketArr, int arrSize) {
+
+void sortArr(List* myList) {
 	printf("Выберите поле для сортировки: \n1 - Дата\n2 - Время\n3 - Название аэропорта\n4 - Время в пути\n5 - Наличие завтрака\n6 - Верунться назад\n\n");
 	int choice = 0;
 	scanf("%d", &choice);
@@ -404,11 +483,11 @@ void sortArr(Aviasales* ticketArr, int arrSize) {
 	}
 	else
 	{
-		for (int i = 0; i < arrSize; i++)
+		for (int i = 0; i < myList->getSize(); i++)
 		{
-			for (int j = arrSize - 1; j > i; j--)
+			for (int j = myList->getSize() - 1; j > i; j--)
 			{
-				if (needToSwap(&ticketArr[j], &ticketArr[j - 1], choice))
+				if (needToSwap(&myList[j], &ticketArr[j - 1], choice))
 				{
 					Aviasales _temp = ticketArr[j];
 					ticketArr[j] = ticketArr[j - 1];
@@ -418,187 +497,118 @@ void sortArr(Aviasales* ticketArr, int arrSize) {
 			}
 		}
 		printf("\nБаза данных успешно отсортированна!\n");
-		printTicketArr(ticketArr, arrSize);
 	};
 }
-void saveDB(Aviasales* ticketArr, int arrSize) {
-	FILE* file = fopen("database.txt", "w");
-	for (int i = 0; i < arrSize; i++)
-	{
-		fprintf(
-			file,
-			"%.2i.%.2i;%.2i:%.2i;%s;%d;\n",
-			ticketArr[i].getDate().getDay(),
-			ticketArr[i].getDate().getMonth(),
-			ticketArr[i].getTime().getHour(),
-			ticketArr[i].getTime().getMinute(),
-			ticketArr[i].getNameOfAirfield(),
-			ticketArr[i].getTravelTime()
-		);
-	}
-	fclose(file);
-}
-void deleteTicket(Aviasales*& ticketArr, int tickNum, int& tickCount) {
-	tickNum--;
-	tickCount--;
-	Aviasales* newArr = new Aviasales[tickCount];
-	for (int i = tickNum; i < tickCount; i++)
-	{
-		ticketArr[i].setDate(ticketArr[i + 1].getDate());
-		ticketArr[i].setIsBreak(ticketArr[i + 1].isBreak());
-		ticketArr[i].setTime(ticketArr[i + 1].getTime());
-		ticketArr[i].setTravelTime(ticketArr[i + 1].getTravelTime());
-		ticketArr[i].setNameOfAirfield(ticketArr[i + 1].getNameOfAirfield());
-	}
-	for (int i = 0; i < tickCount; i++)
-		newArr[i] = ticketArr[i];
-	ticketArr = newArr;
-}
 
-void addTicket(Aviasales*& ticketArr, int& tickCount, Aviasales* toAdd) {
-	Aviasales* newArr = new Aviasales[tickCount + 1];
-	List* temp;
-	for (int i = 0; i < tickCount; i++)
-	{
-		newArr[i] = ticketArr[i];
-	}
-	newArr[tickCount] = *toAdd;
-	tickCount++;
-	ticketArr = newArr;
-//	temp->pushBack(newArr);
+void addTicket(List* temp, Aviasales* toAdd) {
+	temp->pushBack(toAdd);
 }
 
 int main()
 {
-	List* list = new List();
-	Aviasales* temp = new Aviasales();
-	Date date(5, 10);
-	Time time(10, 40);
+	SetConsoleCP(1251);
+	SetConsoleOutputCP(1251);
+	int menu = 0;
+	bool isClear = 1;
+	int ticketsCount = 0;
+	List* myList = new List();
+	Aviasales* tickets = nullptr;
+	while (true)
+	{
+		printf("\n\n---Выберите желаемое действие--- \n 1. Добавление элемента\n 2. Чтение базы данных из файла\n 3. Вывод базы на экран \n 4. Сортировка базы данных \n 5. Записать данные в файл \n 6. Удаление элемента  \n 7. Выход из программы \n");
+		scanf("%d", &menu);
+		switch (menu)
+		{
+		case 1: // Добавление элемента
+			printf("\nДобавление элемента:\n--------------------------------\n");
+			addTicket(myList, Aviasales::readTicket());
+			printf("Информация успешно загружена!");
+			break;
 
-	temp->setTravelTime(4);
-	temp->setIsBreak(1);
-	temp->setDate(date);
-	temp->setTime(time);
-	list->pushBack(temp);
+		case 2: // Чтение из файла
+			printf("\nЧтение базы данных:\n--------------------------------\n");
+			if (myList->getSize() == 0)
+			{
+				Aviasales::readFromFile(myList);
+				printf("Информация успешно загружена!");
+			}
+			else
+			{
+				delete myList;
+				myList = new List();
+				myList->setValueSize(0);
+				Aviasales::readFromFile(myList);
+				printf("Информация успешно загружена!");
+			};
+			break;
 
-	Aviasales* temp1 = new Aviasales();
-	Date date1(5, 10);
-	Time time1(10, 40);
+		case 3: // Вывод на экран
+			printf("\nВывод базы данных на экран:\n--------------------------------\n");
+			if (myList->getSize() == 0)
+			{
+				printf("Вы не выбрали базу данных!");
+			}
+			else
+			{
+				myList->print();
+			};
+			break;
 
-	temp->setTravelTime(3);
-	temp->setIsBreak(2);
-	temp->setDate(date1);
-	temp->setTime(time1);
-	list->pushBack(temp1);
+		case 4: // Сортировка
+			printf("\nСортировка базы данных:\n--------------------------------\n");
+			if (myList->getSize() == 0)
+			{
+				printf("Вы не выбрали базу данных!");
+			}
+			else
+			{
+				sortArr(myList);
+			};
+			break;
+		case 5: // Сохранение
+			printf("\nЗапись базы данных в файл:\n--------------------------------\n");
+			if (myList->getSize() == 0)
+			{
+				printf("Вы не выбрали базу данных!");
+			}
+			else
+			{
+				myList->saveDB();
+				printf("База данных успешно записана в файл!\n");
+			};
+			break;
 
+		case 6: // Удаление элемента
+			printf("\nУдаление элемента:\n--------------------------------\n");
+			if (myList->getSize() == 0)
+			{
+				printf("База данных пуста!");
+			}
+			else
+			{
+				int tickNumber = -1;
+				printf("Введите номер билета\n");
+				scanf("%d", &tickNumber);
+				if (tickNumber > myList->getSize() || tickNumber < 1)
+				{
+					printf("\nВы ввели несуществующий номер!");
+				}
+				else
+				{
+					myList->deleteList(tickNumber);
+					printf("База данных успешно обновлена!");
+				};
+			};
+			break;
 
-	list->print();
-
+		case 7: // Выход
+			printf("Вы успешно завершили работу программы.");
+			return(0);
+			break;
+		default:
+			printf("Такой функции не существует.");
+			break;
+		};
+	}
 	return 0;
 }
-//
-//int main()
-//{
-//	SetConsoleCP(1251);
-//	SetConsoleOutputCP(1251);
-//	int menu = 0;
-//	bool isClear = 1;
-//	int ticketsCount = 0;
-//	Aviasales* tickets = nullptr;
-//	while (true)
-//	{
-//		printf("\n\n---Выберите желаемое действие--- \n 1. Добавление элемента\n 2. Чтение базы данных из файла\n 3. Вывод базы на экран \n 4. Сортировка базы данных \n 5. Записать данные в файл \n 6. Удаление элемента  \n 7. Выход из программы \n");
-//		scanf("%d", &menu);
-//		switch (menu)
-//		{
-//		case 1: // Добавление элемента
-//			printf("\nДобавление элемента:\n--------------------------------\n");
-//			addTicket(tickets, ticketsCount, Aviasales::readTicket());
-//			printf("Информация успешно загружена!");
-//			isClear = 0;
-//			break;
-//		case 6: // Удаление элемента
-//			printf("\nУдаление элемента:\n--------------------------------\n");
-//			if (isClear)
-//			{
-//				printf("База данных пуста!");
-//			}
-//			else
-//			{
-//				int tickNumber = -1;
-//				printf("Введите номер билета\n");
-//				scanf("%d", &tickNumber);
-//				if (tickNumber > ticketsCount || tickNumber < 1)
-//				{
-//					printf("\nВы ввели несуществующий номер!");
-//				}
-//				else
-//				{
-//					deleteTicket(tickets, tickNumber, ticketsCount);
-//					printf("База данных успешно обновлена!");
-//				};
-//			};
-//			break;
-//
-//		case 2: // Чтение из файла
-//			printf("\nЧтение базы данных:\n--------------------------------\n");
-//			if (isClear)
-//			{
-//				tickets = Aviasales::readFromFile(ticketsCount);
-//				printf("Информация успешно загружена!");
-//				isClear = 0;
-//			}
-//			else
-//			{
-//				tickets = nullptr;
-//				ticketsCount = 0;
-//				tickets = Aviasales::readFromFile(ticketsCount);
-//				printf("Информация успешно загружена!");
-//				isClear = 0;
-//			};
-//			break;
-//		case 3: // Вывод на экран
-//			printf("\nВывод базы данных на экран:\n--------------------------------\n");
-//			if (isClear)
-//			{
-//				printf("Вы не выбрали базу данных!");
-//			}
-//			else
-//			{
-//				printTicketArr(tickets, ticketsCount);
-//			};
-//			break;
-//		case 4: // Сортировка
-//			printf("\nСортировка базы данных:\n--------------------------------\n");
-//			if (isClear)
-//			{
-//				printf("Вы не выбрали базу данных!");
-//			}
-//			else
-//			{
-//				sortArr(tickets, ticketsCount);
-//			};
-//			break;
-//		case 5: // Сохранение
-//			printf("\nЗапись базы данных в файл:\n--------------------------------\n");
-//			if (isClear)
-//			{
-//				printf("Вы не выбрали базу данных!");
-//			}
-//			else
-//			{
-//				saveDB(tickets, ticketsCount);
-//				printf("База данных успешно записана в файл!\n");
-//			};
-//			break;
-//		case 7: // Выход
-//			printf("Вы успешно завершили работу программы.");
-//			return(0);
-//			break;
-//		default:
-//			printf("Такой функции не существует.");
-//			break;
-//		};
-//	}
-//	return 0;
-//}
