@@ -7,6 +7,7 @@
 #include <cstring>
 #include <iostream>
 #include <windows.h>
+#include <algorithm>
 using namespace std;
 
 class Aviasales;
@@ -270,15 +271,9 @@ public:
 		}
 	}
 
-	void setSize() {
-		this->size++;
-	}
 	void setValueSize(int _size) {
 		this->size = _size;
 	}							// Да-да, size можно было реализовать иначе, но это мои тараканы :)
-	void decSize() {
-		this->size--;
-	}
 	int getSize() {
 		return size;
 	}
@@ -331,7 +326,7 @@ public:
 			current->next = temp;
 			temp->prev = current;
 		}
-		setSize();
+		size++;
 	}
 	void saveDB() {
 		FILE* file = fopen("database.txt", "w");
@@ -381,7 +376,7 @@ public:
 			{
 				delete head;
 				head = nullptr;
-				decSize();
+				size--;
 				return 0;
 			}
 			else
@@ -389,7 +384,7 @@ public:
 				tmp = tmp->next;
 				delete head;
 				head = tmp;
-				decSize();
+				size--;
 				return 0;
 			}
 		}
@@ -399,7 +394,7 @@ public:
 			current = current->prev;
 			delete current->next;
 			current->next = nullptr;
-			decSize();
+			size--;
 			tail = current;
 			return 0;
 		}
@@ -412,7 +407,7 @@ public:
 			current->prev->next = current->next;
 			current->next->prev = current->prev;
 			delete current;
-			decSize();
+			size--;
 		}
 		printf("Элемент удален!\n");
 	}
